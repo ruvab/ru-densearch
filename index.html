@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Denmark Job Finder PWA</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- PWA Manifest & App Config -->
+    <meta name="theme-color" content="#1e3a8a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DK Job Hunt">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { primary: '#1e3a8a', secondary: '#3b82f6' }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .tab-content.active { display: block; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Mobile Bottom Nav Padding */
+        main { padding-bottom: 80px; }
+        @media (min-width: 768px) {
+            main { padding-bottom: 2rem; padding-top: 2rem; }
+            .bottom-nav { display: none !important; }
+            .desktop-sidebar { display: flex !important; }
+        }
+
+        /* Custom Toast */
+        #toast-container {
+            position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); z-index: 50;
+            display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+        }
+        @media (min-width: 768px) { #toast-container { bottom: 20px; right: 20px; left: auto; transform: none; } }
+        .toast {
+            background: #1f2937; color: white; padding: 12px 24px; border-radius: 9999px;
+            font-size: 0.875rem; font-weight: 500; shadow: 0 4px 6px rgba(0,0,0,0.1);
+            animation: slideUp 0.3s ease-out forwards;
+        }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col md:flex-row">
+
+    <!-- Desktop Sidebar (Hidden on Mobile) -->
+    <aside class="desktop-sidebar hidden w-64 bg-primary text-white flex-col shadow-xl fixed h-full z-20">
+        <div class="p-6 border-b border-blue-800">
+            <h1 class="text-2xl font-bold tracking-tight">DK Job Hub</h1>
+            <p class="text-blue-200 text-xs mt-1">FinTech & BFSI Focus</p>
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-2">
+            <button onclick="switchTab('insights')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors hover:bg-blue-800 text-blue-100" data-target="insights">
+                <i class="ph ph-chart-line-up text-xl"></i> Insights & Salary
+            </button>
+            <button onclick="switchTab('tracker')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors hover:bg-blue-800 text-blue-100" data-target="tracker">
+                <i class="ph ph-list-checks text-xl"></i> Job Tracker
+            </button>
+            <button onclick="switchTab('companies')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors hover:bg-blue-800 text-blue-100" data-target="companies">
+                <i class="ph ph-buildings text-xl"></i> Target Companies
+            </button>
+            <button onclick="switchTab('boards')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors hover:bg-blue-800 text-blue-100" data-target="boards">
+                <i class="ph ph-magnifying-glass text-xl"></i> Job Boards
+            </button>
+            <button onclick="switchTab('strategy')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors hover:bg-blue-800 text-blue-100" data-target="strategy">
+                <i class="ph ph-lightbulb text-xl"></i> Strategy
+            </button>
+            <button onclick="switchTab('sop')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors hover:bg-blue-800 text-blue-100" data-target="sop">
+                <i class="ph ph-list-numbers text-xl"></i> Job Search SOP
+            </button>
+        </nav>
+        <div class="p-4 border-t border-blue-800 bg-blue-900/50">
+            <div class="text-xs text-blue-200">Profile Match:</div>
+            <div class="font-semibold text-sm">Senior BA / Scrum Master</div>
+            <button id="desktop-install-btn" onclick="handleInstallClick()" class="hidden mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white text-sm font-medium transition-colors shadow-sm">
+                <i class="ph ph-download-simple text-lg"></i> Install App
+            </button>
+        </div>
+    </aside>
+
+    <!-- Mobile Header -->
+    <header class="md:hidden bg-primary text-white p-4 sticky top-0 z-20 shadow-md flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-bold">Denmark IT Job Search</h1>
+            <p class="text-blue-200 text-xs flex items-center gap-1"><i class="ph ph-briefcase"></i> BFSI & FinTech Focus</p>
+        </div>
+        <button id="mobile-install-btn" onclick="handleInstallClick()" class="hidden bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg shadow-sm transition-colors">
+            <i class="ph ph-download-simple text-xl"></i>
+        </button>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 md:ml-64 p-4 md:p-8 max-w-5xl w-full mx-auto relative overflow-hidden">
+        
+        <!-- Tab: Insights & Salary -->
+        <section id="insights" class="tab-content active">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-bold mb-2">FinTech & BFSI Alignment</h2>
+                    <p class="text-slate-600">Why this domain is your most lucrative and direct path in Denmark.</p>
+                </div>
+                <!-- Inner Sub-Tab Navigation -->
+                <div class="flex gap-2 bg-slate-200/50 p-1 rounded-lg self-start md:self-end">
+                    <button onclick="switchInsightTab('overview')" id="btn-insight-overview" class="px-4 py-2 font-semibold text-sm rounded-md bg-white shadow-sm text-blue-700 transition-all">Market Overview</button>
+                    <button onclick="switchInsightTab('calculator')" id="btn-insight-calculator" class="px-4 py-2 font-semibold text-sm rounded-md text-slate-600 hover:text-slate-900 transition-all">Tax & Salary Calculator</button>
+                </div>
+            </div>
+            
+            <!-- SUB-TAB: Overview (Existing Content) -->
+            <div id="insight-overview" class="block">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                    <!-- Salary Card -->
+                    <div class="bg-gradient-to-br from-blue-900 to-blue-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-4 opacity-20"><i class="ph ph-coins text-8xl"></i></div>
+                        <div class="relative z-10">
+                            <div class="flex items-center gap-2 mb-4">
+                                <div class="p-2 bg-blue-800 rounded-lg"><i class="ph ph-money text-2xl text-green-400"></i></div>
+                                <h3 class="font-bold text-lg">Validated Market Compensation</h3>
+                            </div>
+                            <div class="text-3xl font-extrabold mb-1">520k - 680k DKK</div>
+                            <div class="text-lg font-semibold text-green-300 mb-1">≈ ₹77.2 Lakhs - ₹1.01 Crores INR</div>
+                            <div class="text-xs font-medium text-green-200/80 mb-2">(Based on 2026 Senior BA/Scrum Master data)</div>
+                            <p class="text-blue-200 text-sm mb-4 font-semibold border-b border-blue-600 pb-2">Annual Gross Base Salary (Pre-tax)</p>
+                            
+                            <ul class="space-y-3 text-sm text-blue-50 mt-4">
+                                <li class="flex items-start gap-2">
+                                    <i class="ph ph-plus-circle text-green-400 mt-0.5 text-lg"></i> 
+                                    <div>
+                                        <strong>True CTC is Higher:</strong> The figures above are just base salary. 
+                                        In the BFSI sector, employers add an <strong>11% to 15% pension contribution on top</strong> of this base.
+                                    </div>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i class="ph ph-chart-line-up text-green-400 mt-0.5 text-lg"></i> 
+                                    <div>
+                                        <strong>The FinTech Premium:</strong> Specialized Core Banking/Payments skills push you toward the 650k+ DKK upper band.
+                                    </div>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i class="ph ph-airplane-tilt text-green-400 mt-0.5 text-lg"></i> 
+                                    <div>
+                                        <strong>Extra Benefits:</strong> 6th week of paid vacation + care days standard.
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Alignment Card -->
+                    <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                        <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i class="ph ph-target text-blue-600"></i> Direct Expertise Alignment</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <h4 class="font-semibold text-slate-800 text-sm">Digital Payments (PA-PG/UPI)</h4>
+                                <p class="text-xs text-slate-600">Aligns perfectly with the Nordic region's cashless push (e.g., Vipps MobilePay, Nets).</p>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-slate-800 text-sm">RegTech & Compliance</h4>
+                                <p class="text-xs text-slate-600">High demand for AML/CFT and KYC automation due to strict EU regulations.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-slate-800 text-sm">Core Banking & Lending</h4>
+                                <p class="text-xs text-slate-600">Matches digital loan origination and CBS modernization at major enterprise banks.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUB-TAB: Calculator -->
+            <div id="insight-calculator" class="hidden mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Calculator Inputs -->
+                    <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                        <h3 class="font-bold text-lg mb-4 flex items-center gap-2 border-b border-slate-100 pb-3"><i class="ph ph-sliders-horizontal text-blue-600 text-xl"></i> Parameters</h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1 flex justify-between">
+                                    <span>Annual Gross Salary (DKK)</span>
+                                    <span id="label-annual-gross" class="text-blue-600">600,000</span>
+                                </label>
+                                <input type="range" id="calc-gross-annual" min="400000" max="1000000" step="10000" value="600000" oninput="calculateSalary()" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                                <div class="flex justify-between text-[10px] text-slate-400 mt-1"><span>400k</span><span>1M+</span></div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1 flex justify-between">
+                                    <span>Effective Tax Rate (%)</span>
+                                    <span id="label-tax-rate" class="text-blue-600">39%</span>
+                                </label>
+                                <p class="text-[10px] text-slate-500 mb-1.5 leading-tight">Simplified effective rate (includes 8% AM-bidrag + A-Skat). Usually 37-41% for high earners.</p>
+                                <input type="range" id="calc-tax-rate" min="30" max="50" step="1" value="39" oninput="calculateSalary()" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1 flex justify-between">
+                                    <span>Employer Pension (%)</span>
+                                    <span id="label-pension-rate" class="text-blue-600">12%</span>
+                                </label>
+                                <p class="text-[10px] text-slate-500 mb-1.5 leading-tight">Financial sector standard is 11-15% paid on top of base salary.</p>
+                                <input type="range" id="calc-pension-rate" min="0" max="20" step="1" value="12" oninput="calculateSalary()" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                            </div>
+                            
+                            <div class="pt-2">
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">DKK to INR Exchange Rate (Live Est.)</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-500 font-medium">₹</div>
+                                    <input type="number" id="calc-exchange-rate" value="14.86" step="0.01" oninput="calculateSalary()" class="w-full bg-slate-50 border border-slate-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:border-blue-500 font-medium text-slate-700">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calculator Outputs -->
+                    <div class="flex flex-col space-y-4">
+                        
+                        <!-- Net Monthly Income -->
+                        <div class="bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-2xl p-5 text-white shadow-md flex-1 flex flex-col justify-center">
+                            <h4 class="text-emerald-100 text-sm font-semibold mb-1 flex items-center gap-1"><i class="ph ph-wallet"></i> Estimated Net Monthly Income (In-Hand)</h4>
+                            <div class="text-3xl font-bold mb-1" id="out-net-monthly-dkk">-- DKK</div>
+                            <div class="text-emerald-200 font-medium text-lg" id="out-net-monthly-inr">-- INR</div>
+                        </div>
+
+                        <!-- 2 Column Grid for Sub-metrics -->
+                        <div class="grid grid-cols-2 gap-4 flex-1">
+                            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-center">
+                                <h4 class="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Gross Monthly</h4>
+                                <div class="text-lg font-bold text-slate-800" id="out-gross-monthly-dkk">-- DKK</div>
+                                <div class="text-sm font-medium text-slate-500" id="out-gross-monthly-inr">-- INR</div>
+                            </div>
+                            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-center">
+                                <h4 class="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1 tooltip" title="Paid by employer straight to pension fund">Monthly Pension</h4>
+                                <div class="text-lg font-bold text-slate-800" id="out-pension-monthly-dkk">-- DKK</div>
+                                <div class="text-sm font-medium text-slate-500" id="out-pension-monthly-inr">-- INR</div>
+                            </div>
+                        </div>
+
+                        <!-- Total Annual CTC -->
+                        <div class="bg-slate-800 rounded-2xl p-5 text-white shadow-md">
+                            <h4 class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Total Annual CTC (Base + Pension)</h4>
+                            <div class="flex justify-between items-end">
+                                <div class="text-xl font-bold text-white" id="out-total-ctc-dkk">-- DKK</div>
+                                <div class="text-md font-medium text-slate-300" id="out-total-ctc-inr">-- INR</div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab: Job Tracker -->
+        <section id="tracker" class="tab-content">
+            <div class="flex justify-between items-end mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold">Application Tracker</h2>
+                    <p class="text-slate-600 text-sm">Track active applications and statuses.</p>
+                </div>
+                <button onclick="toggleTrackerModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-sm transition-colors">
+                    <i class="ph ph-plus-bold"></i> Add Job
+                </button>
+            </div>
+
+            <!-- List of Tracked Jobs (Populated by JS) -->
+            <div id="tracked-jobs-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Dynamically populated -->
+            </div>
+            
+            <!-- Empty State -->
+            <div id="tracker-empty-state" class="hidden flex-col items-center justify-center py-12 text-center bg-white rounded-xl border border-dashed border-slate-300">
+                <i class="ph ph-clipboard-text text-4xl text-slate-300 mb-3"></i>
+                <h3 class="text-lg font-semibold text-slate-700">No applications yet</h3>
+                <p class="text-slate-500 text-sm mb-4">Start tracking your job applications in Denmark.</p>
+                <button onclick="toggleTrackerModal()" class="text-blue-600 font-medium text-sm hover:underline">Add your first job</button>
+            </div>
+        </section>
+
+        <!-- Tab: Target Companies -->
+        <section id="companies" class="tab-content">
+            <h2 class="text-2xl font-bold mb-2">Target FinTech/BFSI Organizations</h2>
+            <p class="text-slate-600 mb-6">Leverage your Financial Systems SME status here to command higher salary bands.</p>
+            <div id="companies-list" class="space-y-3">
+                <!-- Populated by JS -->
+            </div>
+        </section>
+
+        <!-- Tab: Job Boards -->
+        <section id="boards" class="tab-content">
+            <h2 class="text-2xl font-bold mb-2">Primary IT Job Boards</h2>
+            <p class="text-slate-600 mb-6">Reliable for English-speaking roles meeting Pay Limit Scheme thresholds.</p>
+            <div id="boards-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Populated by JS -->
+            </div>
+        </section>
+
+        <!-- Tab: Strategy -->
+        <section id="strategy" class="tab-content">
+            <h2 class="text-2xl font-bold mb-2">Danish Application Strategy</h2>
+            <p class="text-slate-600 mb-6">Cultural adjustments for your CV and Cover Letter.</p>
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-1">
+                <div id="strategy-list" class="divide-y divide-slate-100">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab: SOP -->
+        <section id="sop" class="tab-content">
+            <h2 class="text-2xl font-bold mb-2">Standard Operating Procedure (SOP)</h2>
+            <p class="text-slate-600 mb-6">Your step-by-step execution plan for landing a Danish FinTech role.</p>
+            
+            <div class="space-y-4 mb-8">
+                <!-- Phase 1 -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
+                    <h3 class="font-bold text-slate-800 text-lg mb-2">Phase 1: Preparation (One-Time)</h3>
+                    <ul class="list-disc pl-5 text-sm text-slate-600 space-y-2">
+                        <li>Format CV to Danish standards: Remove photo, age, and marital status. Focus heavily on technical competencies.</li>
+                        <li>Highlight Agile certifications (PSM, PMP) and Core Banking/Payment Gateway expertise prominently on the first page.</li>
+                        <li>Update your LinkedIn profile location to <strong>"Copenhagen Metropolitan Area"</strong> (Crucial for recruiter searches).</li>
+                    </ul>
+                </div>
+
+                <!-- Phase 2 -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
+                    <h3 class="font-bold text-slate-800 text-lg mb-2">Phase 2: Daily Execution</h3>
+                    <ul class="list-disc pl-5 text-sm text-slate-600 space-y-2">
+                        <li><strong>Morning (15 mins):</strong> Scan Workindenmark.dk, TheHub.io, and LinkedIn for new English-speaking postings in FinTech.</li>
+                        <li><strong>Afternoon (30-60 mins):</strong> Submit tailored applications. In Cover Letters, emphasize "cross-functional collaboration in a flat hierarchy" over direct people management.</li>
+                        <li><strong>Tracking:</strong> Log every application immediately into the <button onclick="switchTab('tracker')" class="text-blue-600 hover:underline font-semibold">Job Tracker</button> tab.</li>
+                    </ul>
+                </div>
+
+                <!-- Phase 3 -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
+                    <h3 class="font-bold text-slate-800 text-lg mb-2">Phase 3: Weekly Networking</h3>
+                    <ul class="list-disc pl-5 text-sm text-slate-600 space-y-2">
+                        <li>Identify 2-3 internal recruiters or Talent Acquisition Managers at target companies (e.g., Danske Bank, Nets) on LinkedIn.</li>
+                        <li>Send targeted connection requests: <i>"Hi [Name], I'm a Senior BA specializing in Digital Payments/Core Banking looking to relocate to Copenhagen. I admire [Company]'s recent work in [Project] and would love to connect."</i></li>
+                        <li>Review your tracker every Friday to follow up on any applications older than 14 days.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        
+    </main>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="bottom-nav fixed bottom-0 w-full bg-white border-t border-slate-200 flex justify-around items-center pb-safe z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <!-- added extra padding at bottom for modern iOS devices (pb-safe approximation) -->
+        <div class="flex w-full justify-around pt-2 pb-4 px-2">
+            <button onclick="switchTab('insights')" class="mobile-nav-btn flex flex-col items-center gap-1 text-slate-400 p-2 rounded-xl" data-target="insights">
+                <i class="ph ph-chart-line-up text-2xl"></i>
+                <span class="text-[10px] font-medium">Insights</span>
+            </button>
+            <button onclick="switchTab('tracker')" class="mobile-nav-btn flex flex-col items-center gap-1 text-slate-400 p-2 rounded-xl" data-target="tracker">
+                <i class="ph ph-list-checks text-2xl"></i>
+                <span class="text-[10px] font-medium">Tracker</span>
+            </button>
+            <button onclick="switchTab('companies')" class="mobile-nav-btn flex flex-col items-center gap-1 text-slate-400 p-2 rounded-xl" data-target="companies">
+                <i class="ph ph-buildings text-2xl"></i>
+                <span class="text-[10px] font-medium">Targets</span>
+            </button>
+            <button onclick="switchTab('boards')" class="mobile-nav-btn flex flex-col items-center gap-1 text-slate-400 p-2 rounded-xl" data-target="boards">
+                <i class="ph ph-magnifying-glass text-2xl"></i>
+                <span class="text-[10px] font-medium">Boards</span>
+            </button>
+            <button onclick="switchTab('strategy')" class="mobile-nav-btn flex flex-col items-center gap-1 text-slate-400 p-2 rounded-xl" data-target="strategy">
+                <i class="ph ph-lightbulb text-2xl"></i>
+                <span class="text-[10px] font-medium">Strategy</span>
+            </button>
+            <button onclick="switchTab('sop')" class="mobile-nav-btn flex flex-col items-center gap-1 text-slate-400 p-2 rounded-xl" data-target="sop">
+                <i class="ph ph-list-numbers text-2xl"></i>
+                <span class="text-[10px] font-medium">SOP</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Add/Edit Tracker Modal -->
+    <div id="tracker-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl transform transition-transform scale-95 opacity-0" id="tracker-modal-content">
+            <div class="flex justify-between items-center p-4 border-b border-slate-100">
+                <h3 class="font-bold text-lg" id="modal-title">Add Application</h3>
+                <button onclick="toggleTrackerModal()" class="text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-1"><i class="ph ph-x"></i></button>
+            </div>
+            <form id="tracker-form" onsubmit="handleTrackerSubmit(event)" class="p-4 space-y-4">
+                <input type="hidden" id="job-id">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Company Name *</label>
+                    <input type="text" id="job-company" required class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Job Title / Role *</label>
+                    <input type="text" id="job-title" required placeholder="e.g. Senior Business Analyst" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Link to Posting</label>
+                    <input type="url" id="job-url" placeholder="https://..." class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Date Applied</label>
+                        <input type="date" id="job-date" required class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Status</label>
+                        <select id="job-status" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            <option value="To Apply">To Apply</option>
+                            <option value="Applied">Applied</option>
+                            <option value="Interviewing">Interviewing</option>
+                            <option value="Rejected">Rejected</option>
+                            <option value="Offer">Offer!</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="pt-2">
+                    <button type="submit" class="w-full bg-primary hover:bg-blue-800 text-white font-semibold py-2.5 rounded-lg transition-colors">Save Application</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <script>
+        // --- Data Definitions ---
+        const TARGET_COMPANIES = [
+            { id: 'nets', name: 'Nets Group (Nexi)', category: 'Payment Providers', focus: 'Payment aggregators, CTS integrations, Digital payments' },
+            { id: 'mobilepay', name: 'Vipps MobilePay', category: 'Payment Providers', focus: 'Mobile payment applications, Cashless infra' },
+            { id: 'lunar', name: 'Lunar', category: 'Payment Providers', focus: 'Challenger bank, modern digital banking app' },
+            { id: 'simcorp', name: 'SimCorp', category: 'Investment SaaS', focus: 'Investment management software solutions' },
+            { id: 'saxo', name: 'Saxo Bank', category: 'Investment SaaS', focus: 'Digitized global investment banking, Trading platforms' },
+            { id: 'danske', name: 'Danske Bank', category: 'Enterprise Banks', focus: 'Digital transformation, Loan origination, Compliance automation' },
+            { id: 'nordea', name: 'Nordea', category: 'Enterprise Banks', focus: 'Core Banking modernization, AML/KYC' },
+            { id: 'nykredit', name: 'Nykredit', category: 'Enterprise Banks', focus: 'Digital onboarding, mortgage/loan management, AML' }
+        ];
+
+        const JOB_BOARDS = [
+            { id: 'workindenmark', name: 'Workindenmark', url: 'https://www.workindenmark.dk', desc: 'Government portal for expats. Filter by "IT and Telecommunication". Visa-friendly.', tags: ['Gov', 'English'] },
+            { id: 'linkedin', name: 'LinkedIn (Denmark)', url: 'https://www.linkedin.com/jobs/search/?keywords=Business%20Analyst&location=Copenhagen', desc: 'Primary corporate tool. Search: IT Business Analyst, Scrum Master in Copenhagen.', tags: ['High Volume'] },
+            { id: 'thehub', name: 'The Hub', url: 'https://thehub.io/jobs?countryCodes=DK', desc: 'Premier startup/scaleup board. Great for Technical BA roles in SaaS/FinTechs.', tags: ['Scaleups'] },
+            { id: 'cphtech', name: 'Copenhagen FinTech', url: 'https://copenhagenfintech.dk/community/jobs/', desc: 'Dedicated hub for the FinTech ecosystem. Direct match for your background.', tags: ['Niche', 'FinTech'] },
+            { id: 'jobindex', name: 'Jobindex', url: 'https://www.jobindex.dk/?lang=en', desc: 'Largest aggregator. Use the "Jobs in English" toggle.', tags: ['Aggregator'] }
+        ];
+
+        const CV_STRATEGIES = [
+            { id: 'sme', title: 'Position as a Financial Systems SME', desc: 'Don\'t just list "Business Analyst". Highlight specific domain expertise: Core Banking, Payment Gateways (PA-PG/UPI), and AML/KYC right at the top.' },
+            { id: 'agile', title: 'Highlight Agile & Certs', desc: 'Danish IT heavily uses Agile. Place PSM I, PMP, Jira, and API integration experience prominently.' },
+            { id: 'flat', title: 'Emphasize Flat Hierarchy', desc: 'In cover letters, focus on "facilitating between technical teams and stakeholders" rather than "managing" people.' },
+            { id: 'nophoto', title: 'Skip Photo & Personal Details', desc: 'Do not include marital status, age, or photo on a Danish CV unless requested. Focus purely on competencies.' }
+        ];
+
+        // --- State Management ---
+        let state = {
+            companyStatus: JSON.parse(localStorage.getItem('dkJobCompanyStatus')) || {},
+            strategyCompleted: JSON.parse(localStorage.getItem('dkJobStrategyCompleted')) || {},
+            trackedJobs: JSON.parse(localStorage.getItem('dkJobTrackedJobs')) || []
+        };
+
+        function saveState() {
+            localStorage.setItem('dkJobCompanyStatus', JSON.stringify(state.companyStatus));
+            localStorage.setItem('dkJobStrategyCompleted', JSON.stringify(state.strategyCompleted));
+            localStorage.setItem('dkJobTrackedJobs', JSON.stringify(state.trackedJobs));
+        }
+
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        // --- STREAMING_CHUNK:Insights Calculator Logic... ---
+        function switchInsightTab(tab) {
+            const overview = document.getElementById('insight-overview');
+            const calculator = document.getElementById('insight-calculator');
+            const btnOverview = document.getElementById('btn-insight-overview');
+            const btnCalculator = document.getElementById('btn-insight-calculator');
+
+            if (tab === 'overview') {
+                overview.classList.remove('hidden');
+                calculator.classList.add('hidden');
+                btnOverview.className = "px-4 py-2 font-semibold text-sm rounded-md bg-white shadow-sm text-blue-700 transition-all";
+                btnCalculator.className = "px-4 py-2 font-semibold text-sm rounded-md text-slate-600 hover:text-slate-900 transition-all";
+            } else {
+                overview.classList.add('hidden');
+                calculator.classList.remove('hidden');
+                btnOverview.className = "px-4 py-2 font-semibold text-sm rounded-md text-slate-600 hover:text-slate-900 transition-all";
+                btnCalculator.className = "px-4 py-2 font-semibold text-sm rounded-md bg-white shadow-sm text-blue-700 transition-all";
+                calculateSalary(); // Run calculation instantly
+            }
+        }
+
+        function calculateSalary() {
+            // Get inputs
+            const annualGross = parseFloat(document.getElementById('calc-gross-annual').value) || 0;
+            const taxRate = parseFloat(document.getElementById('calc-tax-rate').value) || 0;
+            const pensionRate = parseFloat(document.getElementById('calc-pension-rate').value) || 0;
+            const exchangeRate = parseFloat(document.getElementById('calc-exchange-rate').value) || 14.86;
+
+            // Update Labels
+            document.getElementById('label-annual-gross').innerText = annualGross.toLocaleString('da-DK');
+            document.getElementById('label-tax-rate').innerText = taxRate + '%';
+            document.getElementById('label-pension-rate').innerText = pensionRate + '%';
+
+            // Calculations
+            const monthlyGrossDkk = annualGross / 12;
+            const monthlyTaxDkk = monthlyGrossDkk * (taxRate / 100);
+            const monthlyNetDkk = monthlyGrossDkk - monthlyTaxDkk;
+            
+            const annualPensionDkk = annualGross * (pensionRate / 100);
+            const monthlyPensionDkk = annualPensionDkk / 12;
+            
+            const totalAnnualCtcDkk = annualGross + annualPensionDkk;
+
+            // Formatting Utilities
+            const fmtDkk = (val) => Math.round(val).toLocaleString('da-DK') + ' kr.';
+            const fmtInr = (val) => '₹ ' + Math.round(val * exchangeRate).toLocaleString('en-IN');
+
+            // Apply DOM Updates
+            document.getElementById('out-net-monthly-dkk').innerText = fmtDkk(monthlyNetDkk);
+            document.getElementById('out-net-monthly-inr').innerText = fmtInr(monthlyNetDkk);
+
+            document.getElementById('out-gross-monthly-dkk').innerText = fmtDkk(monthlyGrossDkk);
+            document.getElementById('out-gross-monthly-inr').innerText = fmtInr(monthlyGrossDkk);
+
+            document.getElementById('out-pension-monthly-dkk').innerText = fmtDkk(monthlyPensionDkk);
+            document.getElementById('out-pension-monthly-inr').innerText = fmtInr(monthlyPensionDkk);
+
+            document.getElementById('out-total-ctc-dkk').innerText = fmtDkk(totalAnnualCtcDkk);
+            document.getElementById('out-total-ctc-inr').innerText = fmtInr(totalAnnualCtcDkk);
+        }
+
+        // --- STREAMING_CHUNK:Implementing Tab Navigation Logic... ---
+        function switchTab(tabId) {
+            // Hide all contents
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            // Show target content
+            document.getElementById(tabId).classList.add('active');
+
+            // Update Desktop Nav styles
+            document.querySelectorAll('.desktop-sidebar .nav-btn').forEach(btn => {
+                if (btn.dataset.target === tabId) {
+                    btn.classList.add('bg-blue-800', 'text-white');
+                    btn.classList.remove('text-blue-100');
+                } else {
+                    btn.classList.remove('bg-blue-800', 'text-white');
+                    btn.classList.add('text-blue-100');
+                }
+            });
+
+            // Update Mobile Nav styles
+            document.querySelectorAll('.bottom-nav .mobile-nav-btn').forEach(btn => {
+                if (btn.dataset.target === tabId) {
+                    btn.classList.add('text-primary');
+                    btn.classList.remove('text-slate-400');
+                } else {
+                    btn.classList.remove('text-primary');
+                    btn.classList.add('text-slate-400');
+                }
+            });
+        }
+
+        // --- STREAMING_CHUNK:Rendering UI Components... ---
+        function renderCompanies() {
+            const container = document.getElementById('companies-list');
+            container.innerHTML = TARGET_COMPANIES.map(company => `
+                <div class="bg-white border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <h3 class="font-bold text-slate-800 text-lg">${company.name}</h3>
+                            <span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">${company.category}</span>
+                        </div>
+                        <p class="text-xs text-slate-600"><i class="ph ph-briefcase"></i> ${company.focus}</p>
+                    </div>
+                    <select 
+                        onchange="updateCompanyStatus('${company.id}', this.value)"
+                        class="text-sm rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 font-medium py-2 px-3 outline-none cursor-pointer bg-slate-50 w-full md:w-40"
+                    >
+                        <option value="Not Started" ${(!state.companyStatus[company.id] || state.companyStatus[company.id] === 'Not Started') ? 'selected' : ''}>Target List</option>
+                        <option value="Researching" ${state.companyStatus[company.id] === 'Researching' ? 'selected' : ''}>Researching</option>
+                        <option value="Applied" ${state.companyStatus[company.id] === 'Applied' ? 'selected' : ''}>Applied</option>
+                        <option value="Interviewing" ${state.companyStatus[company.id] === 'Interviewing' ? 'selected' : ''}>Interviewing</option>
+                        <option value="Offer" ${state.companyStatus[company.id] === 'Offer' ? 'selected' : ''}>Offer</option>
+                    </select>
+                </div>
+            `).join('');
+        }
+
+        function updateCompanyStatus(id, value) {
+            state.companyStatus[id] = value;
+            saveState();
+            showToast(`Updated status for company.`);
+        }
+
+        function renderBoards() {
+            const container = document.getElementById('boards-list');
+            container.innerHTML = JOB_BOARDS.map(board => `
+                <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="font-bold text-lg text-slate-800">${board.name}</h3>
+                        <a href="${board.url}" target="_blank" class="text-blue-500 hover:text-blue-700 bg-blue-50 p-2 rounded-full"><i class="ph ph-arrow-up-right font-bold"></i></a>
+                    </div>
+                    <p class="text-sm text-slate-600 mb-4 flex-1">${board.desc}</p>
+                    <div class="flex gap-2">
+                        ${board.tags.map(tag => `<span class="bg-slate-100 text-slate-600 text-[10px] font-semibold px-2 py-1 rounded-md uppercase tracking-wider">${tag}</span>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderStrategy() {
+            const container = document.getElementById('strategy-list');
+            container.innerHTML = CV_STRATEGIES.map(strat => {
+                const isChecked = state.strategyCompleted[strat.id];
+                return `
+                <div class="p-4 flex items-start gap-4 transition-colors ${isChecked ? 'bg-emerald-50/30' : 'hover:bg-slate-50'} cursor-pointer" onclick="toggleStrategy('${strat.id}')">
+                    <div class="mt-0.5">
+                        <i class="ph ${isChecked ? 'ph-check-circle text-emerald-500 text-2xl' : 'ph-circle text-slate-300 text-2xl'}"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-sm ${isChecked ? 'text-emerald-800 line-through' : 'text-slate-800'}">${strat.title}</h4>
+                        <p class="text-xs mt-1 ${isChecked ? 'text-emerald-600' : 'text-slate-600'}">${strat.desc}</p>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function toggleStrategy(id) {
+            state.strategyCompleted[id] = !state.strategyCompleted[id];
+            saveState();
+            renderStrategy();
+        }
+
+        // --- STREAMING_CHUNK:Implementing Application Tracker Logic... ---
+        function getStatusColor(status) {
+            switch(status) {
+                case 'To Apply': return 'bg-slate-100 text-slate-700';
+                case 'Applied': return 'bg-blue-100 text-blue-700';
+                case 'Interviewing': return 'bg-amber-100 text-amber-700';
+                case 'Offer': return 'bg-emerald-100 text-emerald-700';
+                case 'Rejected': return 'bg-red-100 text-red-700';
+                default: return 'bg-slate-100 text-slate-700';
+            }
+        }
+
+        function renderTracker() {
+            const list = document.getElementById('tracked-jobs-list');
+            const emptyState = document.getElementById('tracker-empty-state');
+            
+            if (state.trackedJobs.length === 0) {
+                list.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+            } else {
+                list.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+                
+                // Sort by date (newest first)
+                const sortedJobs = [...state.trackedJobs].sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                list.innerHTML = sortedJobs.map(job => `
+                    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm relative group">
+                        <div class="absolute top-4 right-4 flex gap-2">
+                            <button onclick="editJob('${job.id}')" class="text-slate-400 hover:text-blue-500"><i class="ph ph-pencil-simple text-lg"></i></button>
+                            <button onclick="deleteJob('${job.id}')" class="text-slate-400 hover:text-red-500"><i class="ph ph-trash text-lg"></i></button>
+                        </div>
+                        <div class="pr-12">
+                            <h3 class="font-bold text-slate-800">${job.title}</h3>
+                            <p class="text-sm font-medium text-slate-600 flex items-center gap-1 mt-1">
+                                <i class="ph ph-buildings"></i> ${job.company}
+                            </p>
+                        </div>
+                        <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                            <span class="text-xs font-medium px-2.5 py-1 rounded-full ${getStatusColor(job.status)}">${job.status}</span>
+                            <div class="flex items-center gap-3">
+                                ${job.url ? `<a href="${job.url}" target="_blank" class="text-xs text-blue-600 hover:underline flex items-center gap-1"><i class="ph ph-link"></i> Link</a>` : ''}
+                                <span class="text-xs text-slate-500 flex items-center gap-1"><i class="ph ph-calendar-blank"></i> ${job.date}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function toggleTrackerModal(reset = true) {
+            const modal = document.getElementById('tracker-modal');
+            const content = document.getElementById('tracker-modal-content');
+            
+            if (modal.classList.contains('hidden')) {
+                // Open
+                if (reset) {
+                    document.getElementById('tracker-form').reset();
+                    document.getElementById('job-id').value = '';
+                    document.getElementById('job-date').valueAsDate = new Date(); // default today
+                    document.getElementById('modal-title').innerText = "Add Application";
+                }
+                modal.classList.remove('hidden');
+                // trigger reflow
+                void modal.offsetWidth;
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            } else {
+                // Close
+                content.classList.remove('scale-100', 'opacity-100');
+                content.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => modal.classList.add('hidden'), 200);
+            }
+        }
+
+        function handleTrackerSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('job-id').value || Date.now().toString();
+            const job = {
+                id: id,
+                company: document.getElementById('job-company').value,
+                title: document.getElementById('job-title').value,
+                url: document.getElementById('job-url').value,
+                date: document.getElementById('job-date').value,
+                status: document.getElementById('job-status').value
+            };
+
+            const existingIndex = state.trackedJobs.findIndex(j => j.id === id);
+            if (existingIndex >= 0) {
+                state.trackedJobs[existingIndex] = job;
+                showToast("Application updated.");
+            } else {
+                state.trackedJobs.push(job);
+                showToast("Application added.");
+            }
+            
+            saveState();
+            renderTracker();
+            toggleTrackerModal(false);
+        }
+
+        function editJob(id) {
+            const job = state.trackedJobs.find(j => j.id === id);
+            if (!job) return;
+            
+            document.getElementById('job-id').value = job.id;
+            document.getElementById('job-company').value = job.company;
+            document.getElementById('job-title').value = job.title;
+            document.getElementById('job-url').value = job.url || '';
+            document.getElementById('job-date').value = job.date;
+            document.getElementById('job-status').value = job.status;
+            document.getElementById('modal-title').innerText = "Edit Application";
+            
+            toggleTrackerModal(false);
+        }
+
+        function deleteJob(id) {
+            // Replaced alert/confirm with direct action for safety per rules, using a soft delete could be better but array filter works
+            state.trackedJobs = state.trackedJobs.filter(j => j.id !== id);
+            saveState();
+            renderTracker();
+            showToast("Application removed.");
+        }
+
+        // --- STREAMING_CHUNK:PWA Installation Logic... ---
+        let deferredPrompt;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+        });
+
+        function handleInstallClick() {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            
+            if (deferredPrompt) {
+                // Show the native install prompt if available
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        document.getElementById('desktop-install-btn')?.classList.add('hidden');
+                        document.getElementById('mobile-install-btn')?.classList.add('hidden');
+                    }
+                    deferredPrompt = null;
+                });
+            } else if (isIOS) {
+                showToast("To install on iOS: Tap the Share icon (square with arrow up) below, then select 'Add to Home Screen'.");
+            } else {
+                // Fallback for Android/Desktop without Service Worker or running locally
+                showToast("To install: Open your browser's menu (3 dots) and select 'Add to Home screen', 'Install App', or 'Save and Share'.");
+            }
+        }
+
+        window.addEventListener('appinstalled', (evt) => {
+            showToast("App successfully installed!");
+            document.getElementById('desktop-install-btn')?.classList.add('hidden');
+            document.getElementById('mobile-install-btn')?.classList.add('hidden');
+        });
+
+        // --- STREAMING_CHUNK:PWA Service Worker Setup and Init... ---
+        function initApp() {
+            renderCompanies();
+            renderBoards();
+            renderStrategy();
+            renderTracker();
+            switchTab('insights'); // Default tab
+            
+            const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+            
+            // Show install buttons if the app is not already installed/running standalone.
+            // This ensures you can access manual install instructions even without a Service Worker.
+            if (!isStandalone) {
+                document.getElementById('desktop-install-btn')?.classList.remove('hidden');
+                document.getElementById('mobile-install-btn')?.classList.remove('hidden');
+            }
+
+            // Note: Service Worker registration using blob: URLs is restricted by modern browsers for security.
+            // In a production environment, you would register a separate 'sw.js' file here.
+            // For this single-file tool, localStorage reliably keeps your application data persistent.
+            console.log('App initialized. (Single-file mode: Service worker omitted)');
+        }
+
+        // Run on load
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
+    
+    <!-- PWA Manifest Injection -->
+    <script>
+        const manifest = {
+            name: "Denmark IT Job Search",
+            short_name: "DK Job Hunt",
+            description: "Tracker and strategy tool for finding FinTech roles in Denmark.",
+            start_url: ".",
+            display: "standalone",
+            background_color: "#f8fafc",
+            theme_color: "#1e3a8a",
+            icons: [
+                {
+                    src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231e3a8a'/%3E%3Cpath d='M30 40h40v30H30z' fill='%23fff' opacity='0.5'/%3E%3Cpath d='M40 30h20v10H40z' fill='%23fff'/%3E%3C/svg%3E",
+                    sizes: "192x192",
+                    type: "image/svg+xml"
+                }
+            ]
+        };
+        const stringManifest = JSON.stringify(manifest);
+        const blob = new Blob([stringManifest], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(blob);
+        document.querySelector('head').insertAdjacentHTML('beforeend', `<link rel="manifest" href="${manifestURL}">`);
+    </script>
+</body>
+</html>
